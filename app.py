@@ -6,7 +6,7 @@ import numpy as np
 
 st.set_page_config(page_title="Petroleum Proactive Automation", page_icon="🚨", layout="wide")
 
-# Inject custom CSS to increase font size for status alerts globally
+# Inject custom CSS to increase font size for all status alerts globally
 st.markdown(
     """
     <style>
@@ -27,35 +27,50 @@ st.markdown(
 )
 
 @st.cache_data
-def load_data():
-    # Base simulation time matched to your project date (July 20, 2026)
-    base_time = datetime.datetime(2026, 7, 20, 0, 0)
-    times = [base_time + datetime.timedelta(minutes=5*i) for i in range(288)]
+def load_year_data():
+    # 📅 GENERATE FULL 1-YEAR TIMELINE SEQUENCES FOR 2026 (5-Minute Sampling Rates)
+    start_time = datetime.datetime(2026, 1, 1, 0, 0)
+    end_time = datetime.datetime(2026, 12, 31, 23, 55)
+
+    # Create continuous timestamps for the whole year
+    times = pd.date_range(start=start_time, end=end_time, freq='5min')
+    total_rows = len(times)
+
     np.random.seed(42)
-    historical_fri = 30 + 15 * np.sin(np.linspace(0, 3 * np.pi, 288)) + np.random.normal(0, 2, 288)
-    projected_fri = historical_fri + np.random.normal(1.5, 1, 288)
+    # Generate year-long fluctuating patterns (seasonal waves + daily waves + noise)
+    base_wave = 30 + 10 * np.sin(np.linspace(0, 2 * np.pi, total_rows))
+    daily_wave = 5 * np.sin(np.linspace(0, 2 * np.pi * 365, total_rows))
+    noise = np.random.normal(0, 2, total_rows)
+
+    historical_fri = base_wave + daily_wave + noise
+    projected_fri = historical_fri + np.random.normal(1.5, 1, total_rows)
+
+    # Clip parameters to realistic risk bounds (0 to 100)
+    historical_fri = np.clip(historical_fri, 0, 100)
+    projected_fri = np.clip(projected_fri, 0, 100)
+
     return pd.DataFrame({'Timestamp': times, 'True_FRI': historical_fri, 'Predicted_FRI_60min': projected_fri})
 
-df = load_data()
+df = load_year_data()
 
-# 📅 SIDEBAR: UPGRADED CALENDAR & TIME SCROLL UI MODULES
+# 📅 SIDEBAR: FULL 365-DAY CALENDAR NAVIGATION CONSOLE
 st.sidebar.markdown("### ⏱️ Spatiotemporal Navigation Console")
 
-# 1. Calendar Date Picker Component
+# 1. Fully Unlocked 1-Year Calendar Date Picker Component
 selected_date = st.sidebar.date_input(
     "Select Target Observation Date:",
-    value=datetime.date(2026, 7, 20),
-    min_value=datetime.date(2026, 7, 20),
-    max_value=datetime.date(2026, 7, 21)
+    value=datetime.date(2026, 7, 20),           # Default landing focus day
+    min_value=datetime.date(2026, 1, 1),         # Unlocked to January 1, 2026
+    max_value=datetime.date(2026, 12, 31)        # Unlocked to December 31, 2026
 )
 
 # 2. Time Input Selector Component (Acts as a time scroll bar)
 selected_time = st.sidebar.time_input(
     "Select Target Log Time (Hour:Minute):",
-    value=datetime.time(10, 0)  # Default index focus point matched to original slider value
+    value=datetime.time(12, 0)
 )
 
-# Combine calendar date and time selection into a standard lookup timestamp
+# Combine selected calendar date and time into a single lookup timestamp
 target_datetime = datetime.datetime.combine(selected_date, selected_time)
 
 # Find the closest matching historical log row using absolute time delta matching
@@ -91,7 +106,7 @@ fig.add_trace(go.Scatter(x=plot_df['Timestamp'], y=plot_df['Predicted_FRI_60min'
 fig.update_layout(xaxis_title="Sequential Timeline Logs (5 Minute Sampling Rates)", yaxis_title="Risk Level Value Score (0 - 100)", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0.01), margin=dict(l=40, r=40, t=40, b=40), height=400)
 st.plotly_chart(fig, use_container_width=True)
 
-st.markdown("### ⚖️ Preemptive Safety Protocol Triggers")
+st.markdown("### ⚙️ Preemptive Safety Protocol Triggers")
 latest_prediction = current_row['Predicted_FRI_60min']
 if latest_prediction > 45.0:
     st.error(f"🔴 CRITICAL ALARM (Projected FRI: {latest_prediction:.2f}): Initiating automated system isolation protocols!")
