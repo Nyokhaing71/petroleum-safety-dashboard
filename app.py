@@ -6,8 +6,29 @@ import numpy as np
 
 st.set_page_config(page_title="Petroleum Proactive Automation", page_icon="🚨", layout="wide")
 
+# Inject custom CSS to increase font size for status alerts globally
+st.markdown(
+    """
+    <style>
+    div[data-testid="stNotification"] p,
+    div[data-testid="stNotification"] span,
+    div[class*="stAlert"] p {
+        font-size: 45px !important;
+        font-weight: 500 !important;
+    }
+    div[data-testid="stNotification"] svg,
+    div[class*="stAlert"] svg {
+        transform: scale(1.3);
+        margin-right: 20px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 @st.cache_data
 def load_data():
+    # Base simulation time matched to your project date (July 20, 2026)
     base_time = datetime.datetime(2026, 7, 20, 0, 0)
     times = [base_time + datetime.timedelta(minutes=5*i) for i in range(288)]
     np.random.seed(42)
@@ -17,11 +38,34 @@ def load_data():
 
 df = load_data()
 
-st.sidebar.markdown("### ⏱️ Timeline Navigation Console")
-slider_index = st.sidebar.slider("Select Timeline Observation Log Point:", min_value=0, max_value=len(df)-1, value=120)
-current_row = df.iloc[slider_index]
-plot_df = df.iloc[max(0, slider_index-100):slider_index+1]
+# 📅 SIDEBAR: UPGRADED CALENDAR & TIME SCROLL UI MODULES
+st.sidebar.markdown("### ⏱️ Spatiotemporal Navigation Console")
 
+# 1. Calendar Date Picker Component
+selected_date = st.sidebar.date_input(
+    "Select Target Observation Date:",
+    value=datetime.date(2026, 7, 20),
+    min_value=datetime.date(2026, 7, 20),
+    max_value=datetime.date(2026, 7, 21)
+)
+
+# 2. Time Input Selector Component (Acts as a time scroll bar)
+selected_time = st.sidebar.time_input(
+    "Select Target Log Time (Hour:Minute):",
+    value=datetime.time(10, 0)  # Default index focus point matched to original slider value
+)
+
+# Combine calendar date and time selection into a standard lookup timestamp
+target_datetime = datetime.datetime.combine(selected_date, selected_time)
+
+# Find the closest matching historical log row using absolute time delta matching
+time_deltas = (df['Timestamp'] - target_datetime).abs()
+closest_index = time_deltas.idxmin()
+
+current_row = df.iloc[closest_index]
+plot_df = df.iloc[max(0, closest_index-100):closest_index+1]
+
+# --- Main Dashboard Visual Elements ---
 st.markdown("<h1 style='text-align: center; color: #0f4c81;'>🚨 Industrial Safety Dashboard: Proactive Automation UI</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; font-style: italic;'>Master's Thesis Project: AI-Driven 60-Minute Predictive Early Warning System</p>", unsafe_allow_html=True)
 st.divider()
@@ -47,7 +91,7 @@ fig.add_trace(go.Scatter(x=plot_df['Timestamp'], y=plot_df['Predicted_FRI_60min'
 fig.update_layout(xaxis_title="Sequential Timeline Logs (5 Minute Sampling Rates)", yaxis_title="Risk Level Value Score (0 - 100)", hovermode="x unified", legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0.01), margin=dict(l=40, r=40, t=40, b=40), height=400)
 st.plotly_chart(fig, use_container_width=True)
 
-st.markdown("### ⚙️ Preemptive Safety Protocol Triggers")
+st.markdown("### ⚖️ Preemptive Safety Protocol Triggers")
 latest_prediction = current_row['Predicted_FRI_60min']
 if latest_prediction > 45.0:
     st.error(f"🔴 CRITICAL ALARM (Projected FRI: {latest_prediction:.2f}): Initiating automated system isolation protocols!")
